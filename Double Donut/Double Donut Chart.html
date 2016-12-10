@@ -1,0 +1,194 @@
+<html>
+	<head>
+		<title>
+			Double Donut Chart
+		</title>
+		<script src = "js/d3.min.js"></script>
+	</head>
+	<style>
+		div{
+			height:90%;
+			width:100%;
+			vertical-align:middle;
+			padding-top:50px;
+		}
+		div.tooltip {	
+			position: absolute;			
+			text-align: center;			
+			width: 60px;					
+			height: 28px;					
+			padding: 2px;				
+			font: 12px sans-serif;		
+			background: lightsteelblue;	
+			border: 0px;		
+			border-radius: 8px;			
+			pointer-events: none;			
+		}
+	</style>
+	<body>
+		<div>
+			
+		</div>
+		<script>
+			//	Declaring global variables...
+			var gdata;
+			
+			//	Start of code execution...
+			start();			
+			
+			//	Reading json data...
+			function start(){
+				d3.json("data/data_for_double_donut.json",function(data){
+						console.log(data);
+						gdata = data;
+						outerdonut();
+				});
+			}
+			
+			//	Making outer donut...
+			function outerdonut(){
+			
+				var width = window.innerWidth - 10,
+					height = window.innerHeight - 130,
+					radius = Math.min(width, height) / 2;
+					
+				
+				
+				data_for_donut_chart = d3.nest()
+									.key(function(d) { return d.sentiment;})
+									.rollup(function(d) { return d.length;})
+									.entries(gdata);
+									
+				var div = d3.select("body").append("div")	
+					.attr("class", "tooltip")				
+					.style("opacity", 0);
+									
+				var color = d3.scale.ordinal()
+							.domain(["Positive","Negative","Neutral"])
+							.range(["green","crimson" , "#1DA1F2"]);
+									
+				var arc = d3.svg.arc()
+						.outerRadius(radius - 10)
+						.innerRadius(radius - 75);	
+
+				var labelArc = d3.svg.arc()
+								.outerRadius(radius - 40)
+								.innerRadius(radius - 40);
+								
+				var pie = d3.layout.pie()
+							.sort(null)
+							.value(function(d) { return d.values; });
+				
+				
+				var svg = d3.select("div").append("svg")
+						.attr("id","pie1")
+						.attr("width", width)
+						.attr("height", height)
+						.append("g")
+						.attr("transform", "translate(" + width / 2 + "," + (height + 50) / 2.2 + ")");
+						
+				var g = svg.selectAll(".arc")
+						.data(pie(data_for_donut_chart))
+						.enter().append("g")
+						.attr("class", "arc");
+						
+				g.append("path")
+				  .attr("d", arc)
+				  .style("fill", function(d) { return color(d.data.key);})
+				  .on("mouseover", function(d) {	
+						console.log(d)
+						div.transition()		
+							.duration(200)		
+							.style("opacity", .9);		
+						div	.html(d.data.key + "<br/>" + d.value)	
+							.style("left", (d3.event.pageX) + "px")		
+							.style("top", (d3.event.pageY - 28) + "px");	
+						})					
+					.on("mouseout", function(d) {		
+						div.transition()		
+							.duration(500)		
+							.style("opacity", 0);	
+					});;
+					
+				g.append("text")	
+				 .attr("transform", function(d) { 
+							return "translate(" + labelArc.centroid(d)+")";								
+						})
+				  .attr("dy", ".35em")
+				  .attr("text-anchor", "middle")
+				  .text(function(d) { return d.data.key.substr(0,3); });
+				
+				mydata = d3.nest()
+					.key(function(d) { return d.data.key;})
+					.rollup(function(d) { return {
+													st_angle:d3.max(d,function(g){ return g.startAngle;}),
+													en_angle:d3.max(d,function(g){ return g.endAngle;})
+												};})
+					.entries(pie(data_for_donut_chart));	
+				
+				mydata.forEach(function(d){
+					tempdata = gdata.filter(function(v){return v.sentiment == d.key});
+					make_inner_pie(tempdata,d.values.st_angle,d.values.en_angle);
+				});
+				
+			}
+			
+			//	Making of inner donut
+			function make_inner_pie(data,startangle, endangle){
+				data_for_pie = d3.nest()
+								.key(function(d) { return d.gender;})
+								.rollup(function(d) { return d.length;})
+								.entries(data);
+			
+			
+				var width = window.innerWidth - 10 ,
+					height = window.innerHeight - 130,
+					radius = Math.min(width, height) / 2.2;
+			
+				var color = d3.scale.ordinal()
+					.domain(["male","female"])
+					.range(["#0000FF","#FF007F"]);
+			
+				var labelArc = d3.svg.arc()
+					.outerRadius(radius - 75)
+					.innerRadius(radius - 75);
+			
+				var arc = d3.svg.arc()
+					.outerRadius(radius - 55)
+					.innerRadius(radius - 65)
+					.padAngle(0.02);
+				
+				
+				var pie = d3.layout.pie()
+					.sort(null)
+					.value(function(d) { return d.values; })
+					.startAngle(startangle)
+					.endAngle(endangle);
+				
+				var svg = d3.select("#pie1").selectAll("g");
+			
+				var g = svg.selectAll(".arc1")
+					  .data(pie(data_for_pie))
+					.enter().append("g")
+					  .attr("class", "arc");
+				  
+				g.append("path")
+					  .attr("d", arc)
+					  .style("fill", function(d) { return color(d.data.key);});
+				  
+				  
+				g.append("text")
+					.attr("id","m_f_text")
+					 .attr("transform", function(d) { 
+								
+								return "translate(" + labelArc.centroid(d)+")";		
+							
+							})
+					  .attr("dy", ".35em")
+					  .attr("text-anchor", "middle")
+					  .text(function(d) { return d.data.key.substr(0,1).toUpperCase(); });
+
+		}
+		</script>
+	</body>
+</html>
